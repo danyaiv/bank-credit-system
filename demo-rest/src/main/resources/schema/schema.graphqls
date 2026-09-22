@@ -1,0 +1,48 @@
+type Query {
+    client(id: ID!): Client
+    clients: [Client!]!
+    loan(id: ID!): LoanApplication
+    loans: [LoanApplication!]!
+}
+
+type Mutation {
+    createClient(input: CreateClientInput!): Client!
+    submitLoanApplication(input: SubmitLoanInput!): LoanApplication!
+}
+
+type Client {
+    id: ID!
+    fullName: String!
+    email: String!
+    passportNumber: String!
+    monthlyIncome: Float!
+    currentDebt: Float!
+    createdAt: String!
+}
+
+type LoanApplication {
+    id: ID!
+    clientId: ID!
+    amount: Float!
+    termMonths: Int!
+    purpose: String!
+    status: String!
+    interestRate: Float!
+    rejectionReason: String
+    createdAt: String!
+}
+
+input CreateClientInput {
+    fullName: String!
+    email: String!
+    passportNumber: String!
+    monthlyIncome: Float!
+    currentDebt: Float!
+}
+
+input SubmitLoanInput {
+    clientId: ID!
+    amount: Float!
+    termMonths: Int!
+    purpose: String!
+}

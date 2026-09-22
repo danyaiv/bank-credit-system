@@ -1,0 +1,162 @@
+# =============================================================================
+# GraphQL-контракт для Recruitment API (HR система)
+#
+# Описывает кандидатов и вакансии.
+# Клиент может запрашивать только нужные поля.
+# =============================================================================
+
+scalar DateTime
+scalar Date
+
+
+
+
+type Candidate {
+    id: ID!
+    name: String!
+    email: String!
+    skills: [String!]!
+    experienceYears: Int
+    status: String
+    createdAt: DateTime
+    updatedAt: DateTime
+    vacancies(page: Int = 0, size: Int = 20): VacancyConnection!
+}
+
+
+type Vacancy {
+    id: ID!
+    title: String!
+    description: String
+    requiredSkills: [String!]!
+    minExperience: Int
+    active: Boolean
+    createdAt: DateTime
+    updatedAt: DateTime
+    candidate: Candidate
+    suitableCandidates(page: Int = 0, size: Int = 20): CandidateConnection!
+}
+
+
+
+type CandidateConnection {
+    content: [Candidate!]!
+    pageInfo: PageInfo!
+    totalElements: Int!
+}
+
+
+
+type PageInfo {
+    pageNumber: Int!
+    pageSize: Int!
+    totalPages: Int!
+    last: Boolean!
+}
+
+type VacancyConnection {
+    content: [Vacancy!]!
+    pageInfo: PageInfo!
+    totalElements: Int!
+}
+
+input CreateCandidateInput {
+    name: String!
+    email: String!
+    skills: [String!]!
+    experienceYears: Int
+}
+
+input UpdateCandidateInput {
+    name: String!
+    email: String!
+    skills: [String!]!
+    experienceYears: Int
+}
+
+input PatchCandidateInput {
+    name: String
+    email: String
+    skills: [String!]
+    experienceYears: Int
+    status: String
+}
+
+input CreateVacancyInput {
+    title: String!
+    description: String
+    requiredSkills: [String!]!
+    minExperience: Int
+}
+
+input UpdateVacancyInput {
+    title: String!
+    description: String
+    requiredSkills: [String!]!
+    minExperience: Int
+    active: Boolean
+}
+
+input PatchVacancyInput {
+    title: String
+    description: String
+    requiredSkills: [String!]
+    minExperience: Int
+    active: Boolean
+}
+
+input CandidateFilter {
+    skill: String
+    minExperience: Int
+    nameSearch: String
+}
+
+input VacancyFilter {
+    skill: String
+    minExperience: Int
+    active: Boolean
+}
+
+
+type Query {
+
+    # Candidate
+    candidate(id: ID!): Candidate
+    candidates(
+        filter: CandidateFilter,
+        page: Int = 0,
+        size: Int = 20
+    ): CandidateConnection!
+
+    # Vacancy
+    vacancy(id: ID!): Vacancy
+    vacancies(
+        filter: VacancyFilter,
+        page: Int,
+        size: Int
+    ): VacancyConnection!
+}
+
+
+
+type Mutation {
+
+    # Candidate
+    createCandidate(input: CreateCandidateInput!): Candidate!
+    updateCandidate(id: ID!, input: UpdateCandidateInput!): Candidate!
+    patchCandidate(id: ID!, input: PatchCandidateInput!): Candidate!
+    deleteCandidate(id: ID!): Boolean!
+
+    # Vacancy
+    createVacancy(input: CreateVacancyInput!): Vacancy!
+    updateVacancy(id: ID!, input: UpdateVacancyInput!): Vacancy!
+    patchVacancy(id: ID!, input: PatchVacancyInput!): Vacancy!
+    deleteVacancy(id: ID!): Boolean!
+
+
+    assignCandidateToVacancy(
+            vacancyId: ID!,
+            candidateId: ID!
+        ): Vacancy
+
+}

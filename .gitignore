@@ -1,0 +1,7 @@
+# Project exclude paths
+/audit-service/target/
+/books-events-contract/target/
+/books-grpc-contract/target/
+/grpc-analytics-server/target/
+/grpc-enrichment-client/target/
+/notification-service/target/
