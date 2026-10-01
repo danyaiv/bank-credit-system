@@ -17,14 +17,13 @@ message LoanScoringRequest {
     double        current_debt            = 5;  // нынешний долг
 }
 
-// Ответ с результатами HR-анализа и предсказаниями
+// Ответ с результатами системы оценки
 message LoanScoringResponse {
     int64  application_id                    = 1;
     int64  client_id                   = 2;  // ID кандидата
-
     bool is_approved                  = 3;  // true - одобрен, false - отказ
     double interest_rate         = 4;  // процентная ставка
     double debt_load_ratio      = 5;  // процент долговой нагрузки
     string rejection_reason            = 6;  // причина отказа
-    string recommendation       =7; // "AUTO_APPROVE" "MANUAL_REVIEW" "REJECT"
+    string recommendation       =7; // "AUTO_APPROVE" "REJECT"
 }

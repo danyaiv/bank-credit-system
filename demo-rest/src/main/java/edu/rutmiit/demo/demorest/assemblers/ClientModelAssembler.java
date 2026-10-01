@@ -2,17 +2,17 @@ package edu.rutmiit.demo.demorest.assemblers;
 
 import edu.rutmiit.demo.bankapicontract.dto.ClientResponse;
 import edu.rutmiit.demo.demorest.controllers.ClientController;
-import edu.rutmiit.demo.demorest.storage.Client;
+import edu.rutmiit.demo.demorest.domain.ClientEntity;
 import org.springframework.hateoas.server.RepresentationModelAssembler;
 import org.springframework.stereotype.Component;
 
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.*;
 
 @Component
-public class ClientModelAssembler implements RepresentationModelAssembler<Client, ClientResponse> {
+public class ClientModelAssembler implements RepresentationModelAssembler<ClientEntity, ClientResponse> {
 
     @Override
-    public ClientResponse toModel(Client entity) {
+    public ClientResponse toModel(ClientEntity entity) {
         ClientResponse response = new ClientResponse(
                 entity.getId(),
                 entity.getFullName(),
@@ -23,7 +23,6 @@ public class ClientModelAssembler implements RepresentationModelAssembler<Client
                 entity.getCreatedAt()
         );
 
-        // Формируем HATEOAS ссылки (_links)
         response.add(linkTo(methodOn(ClientController.class).getClientById(entity.getId())).withSelfRel());
         response.add(linkTo(methodOn(ClientController.class).getAllClients()).withRel("collection"));
 

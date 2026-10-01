@@ -15,48 +15,70 @@ public class CreditScoringService extends BankAnalyticsGrpc.BankAnalyticsImplBas
 
     @Override
     public void evaluateLoan(LoanScoringRequest request, StreamObserver<LoanScoringResponse> responseObserver) {
-        log.info(">> [gRPC ЗАПРОС]: Заявка #{}, Клиент #{}, Запрошено: {} руб, Долг: {} руб",
-                request.getApplicationId(),
-                request.getClientId(),
-                request.getRequestedAmount(),
-                request.getCurrentDebt());
-
-        double requestedAmount = request.getRequestedAmount();
+        long appId = request.getApplicationId();
+        double amount = request.getRequestedAmount();
+        double income = request.getMonthlyIncome();
         double currentDebt = request.getCurrentDebt();
 
-        // расчет доли текущего долга относительно запрашиваемой суммы
-        double debtRatio = requestedAmount > 0 ? (currentDebt / requestedAmount) : 1.0;
-        double debtLoadPercent = debtRatio * 100.0;
+        log.info(">> [gRPC СКОРИНГ ЦБ РФ]: Заявка #{}, Запрошено: {} руб, Доход: {} руб, Текущий долг: {} руб",
+                appId, amount, income, currentDebt);
+
+        // Защита от нулевого дохода
+        if (income <= 0) {
+            income = 1.0;
+        }
+
+        // 1. Расчет ежемесячного платежа по новому кредиту (срок 24 мес, ставка 14%)
+        double termMonths = 24.0;
+        double monthlyNewPrincipal = amount / termMonths;
+        double monthlyNewInterest = amount * (0.14 / 12.0);
+        double monthlyNewPayment = monthlyNewPrincipal + monthlyNewInterest;
+
+        // 2. Расчет среднемесячного платежа по имеющимся долгам (10% по методике ЦБ РФ)
+        double monthlyOldDebtPayment = currentDebt * 0.10;
+
+        // 3. Расчет ПДН (Показатель Долговой Нагрузки)
+        double totalMonthlyPayments = monthlyNewPayment + monthlyOldDebtPayment;
+        double pdnRaw = (totalMonthlyPayments / income) * 100.0;
+
+        // Округляем до 1 знака (например, 14.5%)
+        double pdnPercent = Math.round(pdnRaw * 10.0) / 10.0;
 
         boolean isApproved;
         double interestRate;
         String rejectionReason = "";
         String recommendation;
 
-        // если долг превышает 50% от суммы заявки то отказ
-        if (debtRatio > 0.50) {
+        // 4. Оценка по нормативу Банка России (порог 50%)
+        if (pdnPercent > 50.0) {
             isApproved = false;
             interestRate = 0.0;
-            rejectionReason = String.format("Сумма текущих задолженностей (%.2f руб) превышает 50%% от суммы кредита", currentDebt);
+            rejectionReason = String.format("Отказ по нормативу ЦБ РФ: ПДН составляет %.1f%% (допустимый лимит до 50%%)", pdnPercent);
             recommendation = "REJECT";
 
-            log.warn("<< [gRPC ВЕРДИКТ: ОТКАЗ]: Заявка #{}. Причина: {}", request.getApplicationId(), rejectionReason);
+            log.warn("<< [СКОРИНГ ЦБ РФ: ОТКАЗ]: Заявка #{}. ПДН: {}%. Платежи: {} руб при доходе {} руб",
+                    appId, pdnPercent, Math.round(totalMonthlyPayments), Math.round(income));
         } else {
-            // базовая ставка 13.5% + надбавка за риск
             isApproved = true;
-            interestRate = 13.5 + (debtRatio * 4.0);
-            recommendation = debtRatio < 0.20 ? "AUTO_APPROVE" : "MANUAL_REVIEW";
+            if (pdnPercent <= 35.0) {
+                interestRate = 12.9;
+                recommendation = "AUTO_APPROVE";
+            } else {
+                interestRate = 16.5;
+                recommendation = "MANUAL_REVIEW";
+            }
 
-            log.info("<< [gRPC ВЕРДИКТ: ОДОБРЕНО]: Заявка #{}. Ставка: {}%, Нагрузка: {}%",
-                    request.getApplicationId(), String.format("%.2f", interestRate), String.format("%.1f", debtLoadPercent));
+            log.info("<< [СКОРИНГ ЦБ РФ: ОДОБРЕНО]: Заявка #{}. ПДН: {}%. Ставка: {}%",
+                    appId, pdnPercent, interestRate);
         }
 
+        // 5. Формируем Protobuf ответ
         LoanScoringResponse response = LoanScoringResponse.newBuilder()
-                .setApplicationId(request.getApplicationId())
+                .setApplicationId(appId)
                 .setClientId(request.getClientId())
                 .setIsApproved(isApproved)
-                .setInterestRate(Math.round(interestRate * 100.0) / 100.0)
-                .setDebtLoadRatio(Math.round(debtLoadPercent * 10.0) / 10.0)
+                .setInterestRate(interestRate)
+                .setDebtLoadRatio(pdnPercent)
                 .setRejectionReason(rejectionReason)
                 .setRecommendation(recommendation)
                 .build();

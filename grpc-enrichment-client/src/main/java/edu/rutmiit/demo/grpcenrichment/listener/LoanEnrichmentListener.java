@@ -44,7 +44,6 @@ public class LoanEnrichmentListener {
         try {
             log.info(">> [RabbitMQ]: Получено сообщение на обогащение кредитной заявки");
 
-            // 1. Извлекаем полезную нагрузку payload из конверта
             byte[] body = message.getBody();
             JsonNode rootNode = objectMapper.readTree(body);
             JsonNode payloadNode = rootNode.get("payload");
@@ -58,13 +57,16 @@ public class LoanEnrichmentListener {
             long clientId = payloadNode.has("clientId") ? payloadNode.get("clientId").asLong() : 1L;
             double amount = payloadNode.has("amount") ? payloadNode.get("amount").asDouble() : 100000.0;
 
-            // Моделируем проверку: если клиент с ID=2, то долг 60 000 руб (> 50%), иначе 10 000 руб
-            double monthlyIncome = 100000.0;
-            double currentDebt = (clientId == 2) ? 60000.0 : 10000.0;
+            double monthlyIncome = payloadNode.has("monthlyIncome")
+                    ? payloadNode.get("monthlyIncome").asDouble()
+                    : 50000.0;
+
+            double currentDebt = payloadNode.has("currentDebt")
+                    ? payloadNode.get("currentDebt").asDouble()
+                    : 0.0;
 
             log.info(">> [gRPC ВЫЗОВ]: Отправка заявки #{} на скоринг в BankAnalytics...", applicationId);
 
-            // 2. Формируем бинарный Protobuf запрос
             LoanScoringRequest grpcRequest = LoanScoringRequest.newBuilder()
                     .setApplicationId(applicationId)
                     .setClientId(clientId)
@@ -73,7 +75,6 @@ public class LoanEnrichmentListener {
                     .setCurrentDebt(currentDebt)
                     .build();
 
-            // 3. Быстрый вызов gRPC сервера (синхронно по HTTP/2)
             LoanScoringResponse grpcResponse = scoringStub.evaluateLoan(grpcRequest);
 
             log.info("<< [gRPC ОТВЕТ]: Заявка #{}, Одобрено: {}, Ставка: {}%, Нагрузка: {}%, Причина: {}",
@@ -83,7 +84,6 @@ public class LoanEnrichmentListener {
                     grpcResponse.getDebtLoadRatio(),
                     grpcResponse.getRejectionReason());
 
-            // 4. Формируем обогащенное событие для остальных микросервисов
             LoanEvent.Enriched enrichedPayload = new LoanEvent.Enriched(
                     applicationId,
                     clientId,
@@ -105,7 +105,6 @@ public class LoanEnrichmentListener {
 
             EventEnvelope<LoanEvent.Enriched> envelope = new EventEnvelope<>(metadata, enrichedPayload);
 
-            // 5. Отправляем в брокер с ключом loan.enriched
             rabbitTemplate.convertAndSend(RoutingKeys.EXCHANGE, RoutingKeys.LOAN_ENRICHED, envelope);
             log.info(">> [RabbitMQ]: Обогащенное событие loan.enriched успешно опубликовано в брокер!");
 

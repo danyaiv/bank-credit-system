@@ -21,8 +21,7 @@ import io.swagger.v3.oas.annotations.servers.Server;
                 title = "Recruitment API",
                 version = "1.0.0",
                 description = """
-                        REST API для управления кандидатами и вакансиями.
-                        Позволяет нанимать кандидатов на основе их навыков и опыта.
+                        REST API для подачи заявок на кредитование.
                         """
         ),
         servers = {

@@ -2,47 +2,54 @@ package edu.rutmiit.demo.demorest.service;
 
 import edu.rutmiit.demo.bankapicontract.dto.ClientRequest;
 import edu.rutmiit.demo.bankapicontract.dto.PatchClientRequest;
+import edu.rutmiit.demo.demorest.domain.ClientEntity;
 import edu.rutmiit.demo.demorest.event.ClientEventPublisher;
-import edu.rutmiit.demo.demorest.storage.Client;
-import edu.rutmiit.demo.demorest.storage.InMemoryStorage;
+import edu.rutmiit.demo.demorest.exception.ClientAlreadyExistsException;
+import edu.rutmiit.demo.demorest.repository.ClientRepository;
 import edu.rutmiit.demo.events.ClientEvent;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.NoSuchElementException;
 
 @Service
+@Transactional(readOnly = true) // Чтение в read-only транзакции
 public class ClientService {
 
-    private final InMemoryStorage storage;
+    private final ClientRepository clientRepository;
     private final ClientEventPublisher eventPublisher;
 
-    public ClientService(InMemoryStorage storage, ClientEventPublisher eventPublisher) {
-        this.storage = storage;
+    public ClientService(ClientRepository clientRepository, ClientEventPublisher eventPublisher) {
+        this.clientRepository = clientRepository;
         this.eventPublisher = eventPublisher;
     }
 
-    public Client getClientById(Long id) {
-        return storage.findClientById(id)
+    public ClientEntity getClientById(Long id) {
+        return clientRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Клиент с ID " + id + " не найден"));
     }
 
-    public List<Client> getAllClients() {
-        return storage.findAllClients();
+    public List<ClientEntity> getAllClients() {
+        return clientRepository.findAll();
     }
 
-    public Client createClient(ClientRequest request) {
-        Client client = new Client(
-                null,
+    @Transactional // Создание в активной транзакции
+    public ClientEntity createClient(ClientRequest request) {
+        // Проверка уникального паспорта -> выброс 409 Conflict
+        if (clientRepository.findByPassportNumber(request.passportNumber()).isPresent()) {
+            throw new ClientAlreadyExistsException("Клиент с паспортом " + request.passportNumber() + " уже зарегистрирован");
+        }
+
+        ClientEntity client = new ClientEntity(
                 request.name(),
                 request.email(),
                 request.passportNumber(),
                 request.monthlyIncome(),
                 request.currentDebt()
         );
-        Client saved = storage.saveClient(client);
+        ClientEntity saved = clientRepository.save(client);
 
-        // Отправляем событие о регистрации в RabbitMQ
         eventPublisher.publishClientCreated(new ClientEvent.Created(
                 saved.getId(),
                 saved.getFullName(),
@@ -56,20 +63,23 @@ public class ClientService {
         return saved;
     }
 
-    public Client patchClient(Long id, PatchClientRequest request) {
-        Client client = getClientById(id);
+    @Transactional
+    public ClientEntity patchClient(Long id, PatchClientRequest request) {
+        ClientEntity client = getClientById(id);
         if (request.monthlyIncome() != null) {
             client.setMonthlyIncome(request.monthlyIncome());
         }
         if (request.currentDebt() != null) {
             client.setCurrentDebt(request.currentDebt());
         }
-        return storage.saveClient(client);
+        return clientRepository.save(client);
     }
 
+    @Transactional
     public void deleteClient(Long id) {
-        if (!storage.deleteClient(id)) {
+        if (!clientRepository.existsById(id)) {
             throw new NoSuchElementException("Клиент с ID " + id + " не найден");
         }
+        clientRepository.deleteById(id);
     }
 }

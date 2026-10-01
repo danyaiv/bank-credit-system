@@ -6,10 +6,10 @@ import com.netflix.graphql.dgs.DgsQuery;
 import com.netflix.graphql.dgs.InputArgument;
 import edu.rutmiit.demo.bankapicontract.dto.ClientRequest;
 import edu.rutmiit.demo.bankapicontract.dto.LoanApplicationRequest;
+import edu.rutmiit.demo.demorest.domain.ClientEntity;
+import edu.rutmiit.demo.demorest.domain.LoanApplicationEntity;
 import edu.rutmiit.demo.demorest.service.ClientService;
 import edu.rutmiit.demo.demorest.service.LoanApplicationService;
-import edu.rutmiit.demo.demorest.storage.Client;
-import edu.rutmiit.demo.demorest.storage.LoanApplication;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -26,32 +26,28 @@ public class BankDataFetcher {
         this.loanService = loanService;
     }
 
-    // --- QUERIES (ЧТЕНИЕ) ---
-
     @DgsQuery
-    public Client client(@InputArgument Long id) {
+    public ClientEntity client(@InputArgument Long id) {
         return clientService.getClientById(id);
     }
 
     @DgsQuery
-    public List<Client> clients() {
+    public List<ClientEntity> clients() {
         return clientService.getAllClients();
     }
 
     @DgsQuery
-    public LoanApplication loan(@InputArgument Long id) {
+    public LoanApplicationEntity loan(@InputArgument Long id) {
         return loanService.getLoanById(id);
     }
 
     @DgsQuery
-    public List<LoanApplication> loans() {
+    public List<LoanApplicationEntity> loans() {
         return loanService.getAllLoans();
     }
 
-    // --- MUTATIONS (ИЗМЕНЕНИЕ ДАННЫХ) ---
-
     @DgsMutation
-    public Client createClient(@InputArgument("input") Map<String, Object> input) {
+    public ClientEntity createClient(@InputArgument("input") Map<String, Object> input) {
         String name = input.containsKey("fullName") ? input.get("fullName").toString() : input.get("name").toString();
         ClientRequest request = new ClientRequest(
                 name,
@@ -64,7 +60,7 @@ public class BankDataFetcher {
     }
 
     @DgsMutation
-    public LoanApplication submitLoanApplication(@InputArgument("input") Map<String, Object> input) {
+    public LoanApplicationEntity submitLoanApplication(@InputArgument("input") Map<String, Object> input) {
         Long clientId = Long.parseLong(input.get("clientId").toString());
         BigDecimal amount = new BigDecimal(input.get("amount").toString());
         Integer termMonths = Integer.parseInt(input.get("termMonths").toString());

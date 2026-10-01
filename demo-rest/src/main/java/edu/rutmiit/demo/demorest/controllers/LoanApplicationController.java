@@ -4,8 +4,8 @@ import edu.rutmiit.demo.bankapicontract.dto.LoanApplicationRequest;
 import edu.rutmiit.demo.bankapicontract.dto.LoanApplicationResponse;
 import edu.rutmiit.demo.bankapicontract.endpoints.LoanApplicationApi;
 import edu.rutmiit.demo.demorest.assemblers.LoanApplicationModelAssembler;
+import edu.rutmiit.demo.demorest.domain.LoanApplicationEntity;
 import edu.rutmiit.demo.demorest.service.LoanApplicationService;
-import edu.rutmiit.demo.demorest.storage.LoanApplication;
 import org.springframework.hateoas.CollectionModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -30,7 +30,7 @@ public class LoanApplicationController implements LoanApplicationApi {
 
     @Override
     public ResponseEntity<LoanApplicationResponse> getLoanById(Long id) {
-        LoanApplication loan = loanService.getLoanById(id);
+        LoanApplicationEntity loan = loanService.getLoanById(id);
         return ResponseEntity.ok(assembler.toModel(loan));
     }
 
@@ -49,7 +49,7 @@ public class LoanApplicationController implements LoanApplicationApi {
 
     @Override
     public ResponseEntity<LoanApplicationResponse> createLoan(LoanApplicationRequest request) {
-        LoanApplication created = loanService.createLoan(request);
+        LoanApplicationEntity created = loanService.createLoan(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(assembler.toModel(created));
     }
 }
